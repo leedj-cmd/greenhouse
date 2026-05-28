@@ -1,34 +1,25 @@
 from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
-from typing import List
+from typing import List, Optional
 from uuid import UUID
-import os, shutil, uuid
-from datetime import datetime
-import google.generativeai as genai
-from dotenv import load_dotenv
-
-load_dotenv()
+import os, shutil, uuid, random
 
 from core.database import get_db
 from models.models import AnalysisResult, Image, Field, Notification
-from schemas.schemas import AnalyzeResponse, HistoryItem, FieldResponse, NotificationResponse
-
-# Gemini 초기화
-_GEMINI_KEY = os.getenv("GEMINI_API_KEY", "")
-if _GEMINI_KEY:
-    genai.configure(api_key=_GEMINI_KEY)
-    _gemini_model = genai.GenerativeModel("gemini-1.5-flash")
-else:
-    _gemini_model = None
+from schemas.schemas import (
+    AnalyzeResponse, HistoryItem, FieldResponse,
+    NotificationResponse, ImageItem, LatestAnalysis
+)
 
 router = APIRouter()
 
 UPLOAD_DIR = os.getenv("IMAGE_UPLOAD_DIR", "./uploaded_images")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+
 # ── POST /analyze ─────────────────────────────────────────────────────────────
-# Android 앱에서 이미지 + 구역 ID를 보내면 AI 분석 후 결과 저장
+# 구역 ID + 이미지를 받아 AI 분석 후 결과 저장
 @router.post("/analyze", response_model=AnalyzeResponse)
 async def analyze_image(
     field_id: UUID = Form(...),
@@ -41,7 +32,7 @@ async def analyze_image(
         raise HTTPException(status_code=404, detail="구역을 찾을 수 없습니다.")
 
     # 2. 이미지 저장
-    ext = os.path.splitext(file.filename)[-1]
+    ext = os.path.splitext(file.filename)[-1] or ".jpg"
     filename = f"{uuid.uuid4()}{ext}"
     file_path = os.path.join(UPLOAD_DIR, filename)
     with open(file_path, "wb") as f:
@@ -49,12 +40,13 @@ async def analyze_image(
     file_size_kb = os.path.getsize(file_path) // 1024
 
     # 3. images 테이블에 저장
-    image = Image(file_path=file_path, file_size_kb=file_size_kb)
+    image = Image(file_path=f"/images/{filename}", file_size_kb=file_size_kb)
     db.add(image)
     await db.flush()
 
-    # 4. AI 모델 분석 (Gemini Vision)
-    disease_type, confidence = await _analyze_with_gemini(file_path)
+    # 4. AI 분석
+    # TODO: ML팀 TFLite 모델 완성 시 _mock_analyze() 함수를 교체하세요
+    disease_type, confidence = _mock_analyze()
 
     # 5. analysis_results 저장
     result = AnalysisResult(
@@ -77,6 +69,8 @@ async def analyze_image(
         db.add(notif)
         field.status = "DANGER" if confidence > 0.8 else "WARNING"
         notification_sent = True
+    else:
+        field.status = "NORMAL"
 
     await db.commit()
     await db.refresh(result)
@@ -92,11 +86,129 @@ async def analyze_image(
     )
 
 
+# ── GET /fields ───────────────────────────────────────────────────────────────
+# 전체 구역 목록 + 각 구역의 최신 분석 결과 포함 (Farm 화면 메인)
+@router.get("/fields", response_model=List[FieldResponse])
+async def get_all_fields(db: AsyncSession = Depends(get_db)):
+    fields_result = await db.execute(select(Field).order_by(Field.name))
+    fields = fields_result.scalars().all()
+
+    response = []
+    for field in fields:
+        # 해당 구역의 최신 분석 결과 1건 조회
+        latest_result = await db.execute(
+            select(AnalysisResult, Image.file_path)
+            .join(Image, AnalysisResult.image_id == Image.id)
+            .where(AnalysisResult.field_id == field.id)
+            .order_by(desc(AnalysisResult.analyzed_at))
+            .limit(1)
+        )
+        latest_row = latest_result.first()
+
+        latest_analysis = None
+        if latest_row:
+            ar = latest_row.AnalysisResult
+            latest_analysis = LatestAnalysis(
+                id=ar.id,
+                disease_type=ar.disease_type,
+                confidence=ar.confidence,
+                analyzed_at=ar.analyzed_at,
+                image_path=latest_row.file_path,
+            )
+
+        response.append(FieldResponse(
+            id=field.id,
+            name=field.name,
+            location=field.location,
+            status=field.status,
+            created_at=field.created_at,
+            latest_analysis=latest_analysis,
+        ))
+
+    return response
+
+
+# ── GET /status/{field_id} ────────────────────────────────────────────────────
+# 특정 구역 상태 조회
+@router.get("/status/{field_id}", response_model=FieldResponse)
+async def get_field_status(field_id: UUID, db: AsyncSession = Depends(get_db)):
+    field = await db.get(Field, field_id)
+    if not field:
+        raise HTTPException(status_code=404, detail="구역을 찾을 수 없습니다.")
+
+    latest_result = await db.execute(
+        select(AnalysisResult, Image.file_path)
+        .join(Image, AnalysisResult.image_id == Image.id)
+        .where(AnalysisResult.field_id == field_id)
+        .order_by(desc(AnalysisResult.analyzed_at))
+        .limit(1)
+    )
+    latest_row = latest_result.first()
+
+    latest_analysis = None
+    if latest_row:
+        ar = latest_row.AnalysisResult
+        latest_analysis = LatestAnalysis(
+            id=ar.id,
+            disease_type=ar.disease_type,
+            confidence=ar.confidence,
+            analyzed_at=ar.analyzed_at,
+            image_path=latest_row.file_path,
+        )
+
+    return FieldResponse(
+        id=field.id,
+        name=field.name,
+        location=field.location,
+        status=field.status,
+        created_at=field.created_at,
+        latest_analysis=latest_analysis,
+    )
+
+
+# ── GET /images ───────────────────────────────────────────────────────────────
+# 전체 이미지 갤러리 (Image 화면용) — 구역 필터, 페이지네이션
+@router.get("/images", response_model=List[ImageItem])
+async def get_images(
+    field_id: Optional[UUID] = None,
+    limit: int = 30,
+    offset: int = 0,
+    db: AsyncSession = Depends(get_db)
+):
+    query = (
+        select(Image, Field.name.label("field_name"), Field.id.label("fid"),
+               AnalysisResult.disease_type, AnalysisResult.confidence)
+        .join(AnalysisResult, AnalysisResult.image_id == Image.id, isouter=True)
+        .join(Field, AnalysisResult.field_id == Field.id, isouter=True)
+        .order_by(desc(Image.captured_at))
+        .limit(limit)
+        .offset(offset)
+    )
+    if field_id:
+        query = query.where(AnalysisResult.field_id == field_id)
+
+    rows = (await db.execute(query)).all()
+
+    return [
+        ImageItem(
+            id=row.Image.id,
+            field_id=row.fid,
+            field_name=row.field_name or "",
+            file_path=row.Image.file_path,
+            file_size_kb=row.Image.file_size_kb,
+            captured_at=row.Image.captured_at,
+            disease_type=row.disease_type,
+            confidence=row.confidence,
+        )
+        for row in rows
+    ]
+
+
 # ── GET /history ──────────────────────────────────────────────────────────────
-# 분석 히스토리 목록 (최신순, 선택적으로 구역 필터)
+# 분석 히스토리 (구역 필터 가능)
 @router.get("/history", response_model=List[HistoryItem])
 async def get_history(
-    field_id: UUID = None,
+    field_id: Optional[UUID] = None,
     limit: int = 50,
     db: AsyncSession = Depends(get_db)
 ):
@@ -123,26 +235,8 @@ async def get_history(
     ]
 
 
-# ── GET /status/{field_id} ────────────────────────────────────────────────────
-# 특정 구역의 현재 상태 조회
-@router.get("/status/{field_id}", response_model=FieldResponse)
-async def get_field_status(field_id: UUID, db: AsyncSession = Depends(get_db)):
-    field = await db.get(Field, field_id)
-    if not field:
-        raise HTTPException(status_code=404, detail="구역을 찾을 수 없습니다.")
-    return field
-
-
-# ── GET /fields ───────────────────────────────────────────────────────────────
-# 전체 구역 목록 (앱 메인 화면용)
-@router.get("/fields", response_model=List[FieldResponse])
-async def get_all_fields(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Field).order_by(Field.name))
-    return result.scalars().all()
-
-
 # ── GET /notifications ────────────────────────────────────────────────────────
-# 읽지 않은 알림 목록
+# 미확인 알림 목록
 @router.get("/notifications", response_model=List[NotificationResponse])
 async def get_notifications(db: AsyncSession = Depends(get_db)):
     result = await db.execute(
@@ -165,58 +259,9 @@ async def mark_notification_read(notification_id: UUID, db: AsyncSession = Depen
     return {"message": "읽음 처리 완료"}
 
 
-# ── AI 분석 함수 ──────────────────────────────────────────────────────────────
-async def _analyze_with_gemini(image_path: str) -> tuple[str, float]:
-    """
-    Gemini Vision으로 이미지를 분석합니다.
-    GEMINI_API_KEY가 없으면 mock 결과를 반환합니다.
-
-    ML팀 TFLite 모델 완성 시 이 함수를 교체하세요:
-        interpreter.set_tensor(input_index, image_tensor)
-        interpreter.invoke()
-        output = interpreter.get_tensor(output_index)
-    """
-    if _gemini_model is None:
-        # API Key 없을 때 fallback
-        import random
-        diseases = ["NORMAL", "NORMAL", "NORMAL", "BLIGHT", "RUST"]
-        return random.choice(diseases), round(random.uniform(0.75, 0.99), 2)
-
-    import PIL.Image as PILImage
-    import json
-
-    prompt = """
-You are a plant pathology expert. Analyze the provided plant leaf image.
-Identify whether the plant is healthy or diseased.
-
-Return ONLY a JSON object in this exact format (no markdown, no extra text):
-{
-  "disease_type": "NORMAL or BLIGHT or RUST or MOSAIC or POWDERY_MILDEW or LEAF_SPOT or UNKNOWN",
-  "confidence": 0.00
-}
-
-Rules:
-- disease_type must be one of: NORMAL, BLIGHT, RUST, MOSAIC, POWDERY_MILDEW, LEAF_SPOT, UNKNOWN
-- confidence must be a float between 0.0 and 1.0
-- If the image is not a plant leaf, return UNKNOWN with confidence 0.5
-"""
-
-    try:
-        img = PILImage.open(image_path)
-        response = _gemini_model.generate_content([prompt, img])
-        text = response.text.strip()
-
-        # 마크다운 코드블록 제거
-        if "```json" in text:
-            text = text.split("```json")[1].split("```")[0].strip()
-        elif "```" in text:
-            text = text.split("```")[1].split("```")[0].strip()
-
-        data = json.loads(text)
-        disease_type = data.get("disease_type", "UNKNOWN").upper()
-        confidence   = float(data.get("confidence", 0.8))
-        return disease_type, round(confidence, 2)
-
-    except Exception as e:
-        print(f"Gemini 분석 오류: {e}")
-        return "UNKNOWN", 0.5
+# ── Mock AI 분석 (ML팀 TFLite 모델 연동 전까지 사용) ─────────────────────────
+def _mock_analyze() -> tuple[str, float]:
+    diseases = ["NORMAL", "NORMAL", "NORMAL", "BLIGHT", "RUST"]
+    disease_type = random.choice(diseases)
+    confidence   = round(random.uniform(0.75, 0.99), 2)
+    return disease_type, confidence
