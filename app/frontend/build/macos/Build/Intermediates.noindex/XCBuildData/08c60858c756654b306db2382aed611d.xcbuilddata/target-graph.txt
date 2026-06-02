@@ -1,0 +1,21 @@
+Target dependency graph (9 targets)
+Target 'Runner' in project 'Runner'
+➜ Explicit dependency on target 'Flutter Assemble' in project 'Runner'
+➜ Explicit dependency on target 'FlutterGeneratedPluginSwiftPackage' in project 'FlutterGeneratedPluginSwiftPackage'
+Target 'FlutterGeneratedPluginSwiftPackage' in project 'FlutterGeneratedPluginSwiftPackage'
+➜ Explicit dependency on target 'FlutterGeneratedPluginSwiftPackage' in project 'FlutterGeneratedPluginSwiftPackage'
+➜ Explicit dependency on target 'file-selector-macos' in project 'file_selector_macos'
+➜ Explicit dependency on target 'FlutterFramework' in project 'FlutterFramework'
+Target 'FlutterGeneratedPluginSwiftPackage' in project 'FlutterGeneratedPluginSwiftPackage'
+➜ Explicit dependency on target 'file-selector-macos' in project 'file_selector_macos'
+➜ Explicit dependency on target 'FlutterFramework' in project 'FlutterFramework'
+Target 'FlutterFramework' in project 'FlutterFramework'
+➜ Explicit dependency on target 'FlutterFramework' in project 'FlutterFramework'
+Target 'FlutterFramework' in project 'FlutterFramework' (no dependencies)
+Target 'file-selector-macos' in project 'file_selector_macos'
+➜ Explicit dependency on target 'file_selector_macos' in project 'file_selector_macos'
+➜ Explicit dependency on target 'file_selector_macos_file_selector_macos' in project 'file_selector_macos'
+Target 'file_selector_macos' in project 'file_selector_macos'
+➜ Explicit dependency on target 'file_selector_macos_file_selector_macos' in project 'file_selector_macos'
+Target 'file_selector_macos_file_selector_macos' in project 'file_selector_macos' (no dependencies)
+Target 'Flutter Assemble' in project 'Runner' (no dependencies)
