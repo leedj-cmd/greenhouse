@@ -5,6 +5,7 @@ from sqlalchemy.sql import func
 import uuid
 from core.database import Base
 
+
 class Field(Base):
     __tablename__ = "fields"
 
@@ -17,34 +18,17 @@ class Field(Base):
 
     analysis_results = relationship("AnalysisResult", back_populates="field")
     notifications    = relationship("Notification", back_populates="field")
-    devices          = relationship("Device", back_populates="field")
-
-
-class Device(Base):
-    __tablename__ = "devices"
-
-    id                = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    field_id          = Column(UUID(as_uuid=True), ForeignKey("fields.id", ondelete="SET NULL"), nullable=True)
-    name              = Column(String(100), nullable=False)
-    bluetooth_mac     = Column(String(17), unique=True, nullable=False)
-    last_connected_at = Column(TIMESTAMP, nullable=True)
-    created_at        = Column(TIMESTAMP, server_default=func.now())
-
-    field  = relationship("Field", back_populates="devices")
-    images = relationship("Image", back_populates="device")
 
 
 class Image(Base):
     __tablename__ = "images"
 
     id           = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    device_id    = Column(UUID(as_uuid=True), ForeignKey("devices.id", ondelete="SET NULL"), nullable=True)
     file_path    = Column(String(500), nullable=False)
     file_size_kb = Column(Integer)
     captured_at  = Column(TIMESTAMP, server_default=func.now())
     created_at   = Column(TIMESTAMP, server_default=func.now())
 
-    device          = relationship("Device", back_populates="images")
     analysis_result = relationship("AnalysisResult", back_populates="image", uselist=False)
 
 
