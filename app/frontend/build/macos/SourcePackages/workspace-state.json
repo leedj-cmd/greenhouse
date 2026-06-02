@@ -1,0 +1,41 @@
+{
+  "object" : {
+    "artifacts" : [
+
+    ],
+    "dependencies" : [
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "file_selector_macos-0.9.5",
+          "kind" : "fileSystem",
+          "location" : "/Users/ock/StudioProjects/team_plant_app/app/frontend/macos/Flutter/ephemeral/Packages/.packages/file_selector_macos-0.9.5",
+          "name" : "file_selector_macos"
+        },
+        "state" : {
+          "name" : "fileSystem",
+          "path" : "/Users/ock/StudioProjects/team_plant_app/app/frontend/macos/Flutter/ephemeral/Packages/.packages/file_selector_macos-0.9.5"
+        },
+        "subpath" : "file_selector_macos-0.9.5"
+      },
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "flutterframework",
+          "kind" : "fileSystem",
+          "location" : "/Users/ock/StudioProjects/team_plant_app/app/frontend/macos/Flutter/ephemeral/Packages/.packages/FlutterFramework",
+          "name" : "FlutterFramework"
+        },
+        "state" : {
+          "name" : "fileSystem",
+          "path" : "/Users/ock/StudioProjects/team_plant_app/app/frontend/macos/Flutter/ephemeral/Packages/.packages/FlutterFramework"
+        },
+        "subpath" : "flutterframework"
+      }
+    ],
+    "prebuilts" : [
+
+    ]
+  },
+  "version" : 7
+}
