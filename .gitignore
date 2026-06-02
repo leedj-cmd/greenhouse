@@ -46,3 +46,22 @@ app.*.map.json
 
 # Environment variables
 .env
+
+# Kaggle credentials (절대 커밋 금지)
+kaggle.json
+**/kaggle.json
+
+# AI 학습 결과물 (용량 큼)
+ai/yolo_dataset/
+ai/runs/
+ai/*.pth
+ai/*.pt
+ai/*.tflite
+ai/dataset_metadata.json
+ai/class_distribution.png
+ai/training_history.png
+ai/smartfarm_result.png
+
+# Python cache
+__pycache__/
+*.pyc

@@ -18,12 +18,58 @@ import yaml
 
 SEED = 42
 random.seed(SEED); np.random.seed(SEED); torch.manual_seed(SEED)
-DEVICE = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+
+# Windows/Linux: CUDA → CPU 순서로 fallback (Mac MPS도 지원)
+if torch.cuda.is_available():
+    DEVICE = torch.device("cuda")
+elif torch.backends.mps.is_available():
+    DEVICE = torch.device("mps")
+else:
+    DEVICE = torch.device("cpu")
 print(f"PyTorch: {torch.__version__} | Device: {DEVICE}")
 
 # ── 경로 설정 ──────────────────────────────────────────────
-import kagglehub
-DATASET_ROOT = Path(kagglehub.dataset_download("vipoooool/new-plant-diseases-dataset"))
+import shutil, subprocess, sys
+
+# kaggle.json 자동 배치 (처음 실행 시 ~/.kaggle/ 에 복사)
+_KAGGLE_SRC = Path(__file__).parent / "kaggle.json"
+_KAGGLE_DST = Path.home() / ".kaggle" / "kaggle.json"
+if _KAGGLE_SRC.exists() and not _KAGGLE_DST.exists():
+    _KAGGLE_DST.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(_KAGGLE_SRC, _KAGGLE_DST)
+    try:
+        _KAGGLE_DST.chmod(0o600)
+    except Exception:
+        pass
+    print(f"kaggle.json → {_KAGGLE_DST} 복사 완료")
+
+# 데이터셋 다운로드 (kaggle CLI 사용)
+import os
+os.environ["KAGGLE_CONFIG_DIR"] = str(Path.home() / ".kaggle")
+
+try:
+    import kaggle
+except ImportError:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "kaggle"])
+    import kaggle
+
+DATASET_DIR = Path("./kaggle_dataset")
+DATASET_DIR.mkdir(exist_ok=True)
+
+if not any(DATASET_DIR.iterdir()) if DATASET_DIR.exists() else True:
+    print("데이터셋 다운로드 중...")
+    kaggle.api.authenticate()
+    kaggle.api.dataset_download_files(
+        "vipoooool/new-plant-diseases-dataset",
+        path=str(DATASET_DIR),
+        unzip=True,
+    )
+    print("다운로드 완료")
+else:
+    print("데이터셋 이미 존재 — 다운로드 스킵")
+
+DATASET_ROOT = DATASET_DIR
+BASE = DATASET_ROOT / "New Plant Diseases Dataset(Augmented)" / "New Plant Diseases Dataset(Augmented)"
 BASE = DATASET_ROOT / "New Plant Diseases Dataset(Augmented)" / "New Plant Diseases Dataset(Augmented)"
 TRAIN_DIR = BASE / "train"
 VAL_DIR   = BASE / "valid"
@@ -156,7 +202,7 @@ print(f"Train: {len(train_dataset):,}장 | Val: {len(val_dataset):,}장")
 
 # ── DataLoader ────────────────────────────────────────────
 BATCH_SIZE  = 32
-NUM_WORKERS = 0   # MPS에서는 0이 안전
+NUM_WORKERS = 0   # MPS/Windows에서는 0이 안전
 train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True,
                           num_workers=NUM_WORKERS, drop_last=True)
 val_loader   = DataLoader(val_dataset,   batch_size=BATCH_SIZE, shuffle=False,
@@ -231,7 +277,7 @@ yolo_model.train(
     optimizer='AdamW',
     project='./runs', name='smartfarm',
     exist_ok=True,
-    device='mps',
+    device=str(DEVICE),   # cuda / mps / cpu 자동 선택
     flipud=0.2, fliplr=0.5, degrees=15, hsv_s=0.3, hsv_v=0.3,
 )
 print('YOLOv8 학습 완료')
