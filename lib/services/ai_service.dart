@@ -1,14 +1,14 @@
-import 'dart:io';
 import 'dart:convert';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:image_picker/image_picker.dart';
 
 class AIService {
   static final String _apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
 
-  static Future<Map<String, dynamic>> diagnosePlant(File imageFile) async {
-    if (_apiKey.isEmpty) {
-      throw Exception('API Key is missing. Please add GEMINI_API_KEY to your .env file.');
+  static Future<Map<String, dynamic>> diagnosePlant(XFile imageFile) async {
+    if (_apiKey.isEmpty || _apiKey == 'your_api_key_here') {
+      throw Exception('API Key is missing or invalid. Please add a valid GEMINI_API_KEY to your .env file.');
     }
 
     final model = GenerativeModel(
