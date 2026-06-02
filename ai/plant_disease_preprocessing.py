@@ -272,7 +272,7 @@ from ultralytics import YOLO as UltralyticsYOLO
 yolo_model = UltralyticsYOLO('yolov8s.pt')
 yolo_model.train(
     data=str(YOLO_DIR / 'data.yaml'),
-    epochs=30, imgsz=224, batch=32,
+    epochs=5, imgsz=224, batch=32,
     lr0=1e-4, weight_decay=0.01,
     optimizer='AdamW',
     project='./runs', name='smartfarm',
@@ -342,7 +342,7 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=10):
     model.load_state_dict(best_wts)
     return model, history
 
-model, history = train_model(model, criterion, optimizer, scheduler, num_epochs=10)
+model, history = train_model(model, criterion, optimizer, scheduler, num_epochs=3)
 
 # ── 학습 곡선 저장 ────────────────────────────────────────
 fig, axes = plt.subplots(1, 2, figsize=(12, 5))
