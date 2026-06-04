@@ -1,22 +1,18 @@
 from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, func
 from typing import List, Optional
 from uuid import UUID
-import os, shutil, uuid, random
 
 from core.database import get_db
 from models.models import AnalysisResult, Image, Field, Notification
 from schemas.schemas import (
-    AnalyzeResponse, HistoryItem, FieldResponse,
+    AnalyzeResponse, HistoryItem, HistoryListResponse, FieldResponse,
     NotificationResponse, ImageItem, LatestAnalysis
 )
-from ai_inference import analyze as ai_analyze
+from services.analysis_service import run_analysis
 
 router = APIRouter()
-
-UPLOAD_DIR = os.getenv("IMAGE_UPLOAD_DIR", "./uploaded_images")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 # ── POST /analyze ─────────────────────────────────────────────────────────────
@@ -25,64 +21,31 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 async def analyze_image(
     field_id: UUID = Form(...),
     file: UploadFile = File(...),
+    disease_type: Optional[str] = Form(None),   # 앱 TFLite 결과 (있으면 서버 추론 생략)
+    confidence:   Optional[float] = Form(None),
     db: AsyncSession = Depends(get_db)
 ):
-    # 1. 구역 존재 확인
     field = await db.get(Field, field_id)
     if not field:
         raise HTTPException(status_code=404, detail="구역을 찾을 수 없습니다.")
 
-    # 2. 이미지 저장
-    ext = os.path.splitext(file.filename)[-1] or ".jpg"
-    filename = f"{uuid.uuid4()}{ext}"
-    file_path = os.path.join(UPLOAD_DIR, filename)
-    with open(file_path, "wb") as f:
-        shutil.copyfileobj(file.file, f)
-    file_size_kb = os.path.getsize(file_path) // 1024
-
-    # 3. images 테이블에 저장
-    image = Image(file_path=f"/images/{filename}", file_size_kb=file_size_kb)
-    db.add(image)
-    await db.flush()
-
-    # 4. AI 분석 (실제 ONNX 모델)
-    disease_type, confidence = ai_analyze(file_path)
-
-    # 5. analysis_results 저장
-    result = AnalysisResult(
-        field_id=field_id,
-        image_id=image.id,
-        disease_type=disease_type,
-        confidence=confidence,
+    image_bytes = await file.read()
+    outcome = await run_analysis(
+        db, field, image_bytes, file.filename or "upload.jpg",
+        disease_type=disease_type, confidence=confidence,
     )
-    db.add(result)
-    await db.flush()
-
-    # 6. 질병 감지 시 알림 생성 + 구역 상태 업데이트
-    notification_sent = False
-    if disease_type != "NORMAL":
-        notif = Notification(
-            field_id=field_id,
-            analysis_id=result.id,
-            message=f"[{field.name}] {disease_type} 감지됨 (신뢰도: {confidence:.0%})",
-        )
-        db.add(notif)
-        field.status = "DANGER" if confidence > 0.8 else "WARNING"
-        notification_sent = True
-    else:
-        field.status = "NORMAL"
-
-    await db.commit()
-    await db.refresh(result)
 
     return AnalyzeResponse(
-        id=result.id,
-        field_id=result.field_id,
-        image_id=result.image_id,
-        disease_type=result.disease_type,
-        confidence=result.confidence,
-        analyzed_at=result.analyzed_at,
-        notification_sent=notification_sent,
+        id=outcome.result.id,
+        field_id=outcome.result.field_id,
+        image_id=outcome.result.image_id,
+        disease_type=outcome.result.disease_type,
+        confidence=outcome.result.confidence,
+        analyzed_at=outcome.result.analyzed_at,
+        notification_sent=outcome.notification_sent,
+        message=outcome.message,
+        field_status=outcome.field_status,
+        inference_source=outcome.inference_source,
     )
 
 
@@ -205,24 +168,43 @@ async def get_images(
 
 
 # ── GET /history ──────────────────────────────────────────────────────────────
-# 분석 히스토리 (구역 필터 가능)
-@router.get("/history", response_model=List[HistoryItem])
+# 분석 히스토리 (구역 필터 + 질병만 필터 + 페이지네이션)
+@router.get("/history", response_model=HistoryListResponse)
 async def get_history(
     field_id: Optional[UUID] = None,
-    limit: int = 50,
+    limit: int = 20,
+    offset: int = 0,
+    disease_only: bool = False,
     db: AsyncSession = Depends(get_db)
 ):
-    query = (
+    safe_limit  = max(1, min(limit, 100))
+    safe_offset = max(0, offset)
+
+    base = select(AnalysisResult).join(Image, AnalysisResult.image_id == Image.id)
+    if field_id:
+        base = base.where(AnalysisResult.field_id == field_id)
+    if disease_only:
+        base = base.where(AnalysisResult.disease_type != "NORMAL")
+
+    # 전체 건수
+    count_q = select(func.count()).select_from(base.subquery())
+    total = (await db.execute(count_q)).scalar_one()
+
+    # 데이터
+    data_q = (
         select(AnalysisResult, Image.file_path)
         .join(Image, AnalysisResult.image_id == Image.id)
         .order_by(desc(AnalysisResult.analyzed_at))
-        .limit(limit)
+        .limit(safe_limit)
+        .offset(safe_offset)
     )
     if field_id:
-        query = query.where(AnalysisResult.field_id == field_id)
+        data_q = data_q.where(AnalysisResult.field_id == field_id)
+    if disease_only:
+        data_q = data_q.where(AnalysisResult.disease_type != "NORMAL")
 
-    rows = (await db.execute(query)).all()
-    return [
+    rows = (await db.execute(data_q)).all()
+    items = [
         HistoryItem(
             id=r.AnalysisResult.id,
             field_id=r.AnalysisResult.field_id,
@@ -233,6 +215,7 @@ async def get_history(
         )
         for r in rows
     ]
+    return HistoryListResponse(data=items, total=total, limit=safe_limit, offset=safe_offset)
 
 
 # ── GET /notifications ────────────────────────────────────────────────────────
@@ -259,9 +242,3 @@ async def mark_notification_read(notification_id: UUID, db: AsyncSession = Depen
     return {"message": "읽음 처리 완료"}
 
 
-# ── Mock AI 분석 (ML팀 TFLite 모델 연동 전까지 사용) ─────────────────────────
-def _mock_analyze() -> tuple[str, float]:
-    diseases = ["NORMAL", "NORMAL", "NORMAL", "BLIGHT", "RUST"]
-    disease_type = random.choice(diseases)
-    confidence   = round(random.uniform(0.75, 0.99), 2)
-    return disease_type, confidence

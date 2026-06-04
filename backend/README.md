@@ -1,4 +1,20 @@
-# Greenhouse Backend API 서버
+# Greenhouse Backend API 서버 (DEPRECATED)
+
+> ⚠️ **이 Node.js 백엔드는 더 이상 사용하지 않습니다.**
+> 운영 백엔드는 `server/` (FastAPI + ONNX 추론) 로 통합되었습니다.
+>
+> | 항목 | 이 폴더 (backend/) | 운영 (server/) |
+> |------|--------------------|----------------|
+> | 상태 | Deprecated, 참고용 보존 | Active |
+> | 추론 | Mock | ONNX (best_crop_model.onnx) |
+> | 포트 | 3000 | 8000 |
+> | 실행 | `npm run dev` | `uvicorn main:app --reload` |
+>
+> Node 코드의 자산 (한국어 메시지 사전, history pagination total, /health, confidence 임계값 0.9) 은
+> 모두 `server/` 로 흡수되었습니다.
+> 새로운 API 작업은 `server/routers/api.py` 에서 진행하세요.
+
+---
 
 비닐하우스 농장 질병 감지 앱의 REST API 서버입니다.
 

@@ -1,0 +1,165 @@
+- generic [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - heading "비닐하우스 관리자" [level=1] [ref=e5]
+        - paragraph [ref=e6]: 구역별 식물 질병 모니터링
+      - generic [ref=e7]:
+        - generic [ref=e8]:
+          - generic [ref=e9]:
+            - generic [ref=e11]: 정상
+            - generic [ref=e12]: "16"
+          - generic [ref=e13]:
+            - generic [ref=e15]: 주의
+            - generic [ref=e16]: "2"
+          - generic [ref=e17]:
+            - generic [ref=e19]: 위험
+            - generic [ref=e20]: "2"
+        - generic [ref=e21]:
+          - generic [ref=e22]: 마지막 갱신
+          - generic [ref=e23]: 16시 42분 24초
+        - generic [ref=e26]: 연결됨
+  - main [ref=e27]:
+    - generic [ref=e28]:
+      - generic [ref=e29]:
+        - heading "구역 현황" [level=2] [ref=e30]
+        - generic [ref=e31]: 구역 클릭 → 최신 분석 상세
+      - generic [ref=e32]:
+        - button "A1 정상 정상 34%" [ref=e1015] [cursor=pointer]:
+          - generic [ref=e1017]: A1
+          - generic [ref=e1019]: 정상
+          - generic [ref=e1020]: 정상
+          - generic [ref=e1021]: 34%
+        - button "A2 정상 정상 97%" [ref=e1022] [cursor=pointer]:
+          - generic [ref=e1024]: A2
+          - generic [ref=e1026]: 정상
+          - generic [ref=e1027]: 정상
+          - generic [ref=e1028]: 97%
+        - button "A3 정상 데이터 없음 -" [ref=e1029] [cursor=pointer]:
+          - generic [ref=e1031]: A3
+          - generic [ref=e1033]: 정상
+          - generic [ref=e1034]: 데이터 없음
+          - generic [ref=e1035]: "-"
+        - button "A4 정상 데이터 없음 -" [ref=e1036] [cursor=pointer]:
+          - generic [ref=e1038]: A4
+          - generic [ref=e1040]: 정상
+          - generic [ref=e1041]: 데이터 없음
+          - generic [ref=e1042]: "-"
+        - button "B1 위험 녹병 99%" [ref=e1043] [cursor=pointer]:
+          - generic [ref=e1045]: B1
+          - generic [ref=e1047]: 위험
+          - generic [ref=e1048]: 녹병
+          - generic [ref=e1049]: 99%
+        - button "B2 주의 녹병 88%" [ref=e1050] [cursor=pointer]:
+          - generic [ref=e1052]: B2
+          - generic [ref=e1054]: 주의
+          - generic [ref=e1055]: 녹병
+          - generic [ref=e1056]: 88%
+        - button "B3 정상 데이터 없음 -" [ref=e1057] [cursor=pointer]:
+          - generic [ref=e1059]: B3
+          - generic [ref=e1061]: 정상
+          - generic [ref=e1062]: 데이터 없음
+          - generic [ref=e1063]: "-"
+        - button "B4 정상 데이터 없음 -" [ref=e1064] [cursor=pointer]:
+          - generic [ref=e1066]: B4
+          - generic [ref=e1068]: 정상
+          - generic [ref=e1069]: 데이터 없음
+          - generic [ref=e1070]: "-"
+        - button "C1 정상 정상 30%" [ref=e1071] [cursor=pointer]:
+          - generic [ref=e1073]: C1
+          - generic [ref=e1075]: 정상
+          - generic [ref=e1076]: 정상
+          - generic [ref=e1077]: 30%
+        - button "C2 정상 데이터 없음 -" [ref=e1078] [cursor=pointer]:
+          - generic [ref=e1080]: C2
+          - generic [ref=e1082]: 정상
+          - generic [ref=e1083]: 데이터 없음
+          - generic [ref=e1084]: "-"
+        - button "C3 정상 데이터 없음 -" [ref=e1085] [cursor=pointer]:
+          - generic [ref=e1087]: C3
+          - generic [ref=e1089]: 정상
+          - generic [ref=e1090]: 데이터 없음
+          - generic [ref=e1091]: "-"
+        - button "C4 정상 데이터 없음 -" [ref=e1092] [cursor=pointer]:
+          - generic [ref=e1094]: C4
+          - generic [ref=e1096]: 정상
+          - generic [ref=e1097]: 데이터 없음
+          - generic [ref=e1098]: "-"
+        - button "D1 위험 역병 94%" [active] [ref=e1099] [cursor=pointer]:
+          - generic [ref=e1101]: D1
+          - generic [ref=e1103]: 위험
+          - generic [ref=e1104]: 역병
+          - generic [ref=e1105]: 94%
+        - button "D2 주의 점무늬병 78%" [ref=e1106] [cursor=pointer]:
+          - generic [ref=e1108]: D2
+          - generic [ref=e1110]: 주의
+          - generic [ref=e1111]: 점무늬병
+          - generic [ref=e1112]: 78%
+        - button "D3 정상 데이터 없음 -" [ref=e1113] [cursor=pointer]:
+          - generic [ref=e1115]: D3
+          - generic [ref=e1117]: 정상
+          - generic [ref=e1118]: 데이터 없음
+          - generic [ref=e1119]: "-"
+        - button "D4 정상 데이터 없음 -" [ref=e1120] [cursor=pointer]:
+          - generic [ref=e1122]: D4
+          - generic [ref=e1124]: 정상
+          - generic [ref=e1125]: 데이터 없음
+          - generic [ref=e1126]: "-"
+        - button "E1 정상 데이터 없음 -" [ref=e1127] [cursor=pointer]:
+          - generic [ref=e1129]: E1
+          - generic [ref=e1131]: 정상
+          - generic [ref=e1132]: 데이터 없음
+          - generic [ref=e1133]: "-"
+        - button "E2 정상 데이터 없음 -" [ref=e1134] [cursor=pointer]:
+          - generic [ref=e1136]: E2
+          - generic [ref=e1138]: 정상
+          - generic [ref=e1139]: 데이터 없음
+          - generic [ref=e1140]: "-"
+        - button "E3 정상 데이터 없음 -" [ref=e1141] [cursor=pointer]:
+          - generic [ref=e1143]: E3
+          - generic [ref=e1145]: 정상
+          - generic [ref=e1146]: 데이터 없음
+          - generic [ref=e1147]: "-"
+        - button "E4 정상 데이터 없음 -" [ref=e1148] [cursor=pointer]:
+          - generic [ref=e1150]: E4
+          - generic [ref=e1152]: 정상
+          - generic [ref=e1153]: 데이터 없음
+          - generic [ref=e1154]: "-"
+    - complementary [ref=e173]:
+      - generic [ref=e174]:
+        - generic [ref=e175]:
+          - heading "알림" [level=2] [ref=e176]
+          - generic [ref=e177]: "2"
+        - generic [ref=e178]:
+          - generic [ref=e1155]:
+            - generic [ref=e1157]:
+              - generic [ref=e1158]: "[b2] 녹병이 감지되었습니다 (신뢰도 88%)"
+              - generic [ref=e1159]: 26. 06. 04. 16:28
+            - button "확인" [ref=e1160] [cursor=pointer]
+          - generic [ref=e1161]:
+            - generic [ref=e1163]:
+              - generic [ref=e1164]: "[b1] 녹병이 감지되었습니다 (신뢰도 99%)"
+              - generic [ref=e1165]: 26. 06. 04. 16:28
+            - button "확인" [ref=e1166] [cursor=pointer]
+  - generic [ref=e672]:
+    - generic [ref=e673]:
+      - generic [ref=e674]:
+        - heading "D1" [level=3] [ref=e1167]
+        - paragraph [ref=e676]: 구역 D-1
+      - button "×" [ref=e677] [cursor=pointer]
+    - generic [ref=e678]:
+      - img [ref=e1168]
+      - generic [ref=e682]:
+        - generic [ref=e683]:
+          - term [ref=e684]: 현재 상태
+          - definition [ref=e685]: 위험
+        - generic [ref=e687]:
+          - term [ref=e688]: 진단 결과
+          - definition [ref=e689]: 역병 (BLIGHT)
+        - generic [ref=e690]:
+          - term [ref=e691]: 신뢰도
+          - definition [ref=e692]:
+            - generic [ref=e695]: 94%
+        - generic [ref=e696]:
+          - term [ref=e697]: 분석 시각
+          - definition [ref=e698]: 26. 06. 04. 16:28

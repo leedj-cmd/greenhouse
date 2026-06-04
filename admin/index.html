@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>비닐하우스 관리자 대시보드</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<!-- Tailwind Play CDN — 로컬 vendoring (외부 스크립트 로드 제거, SRI 회피) -->
+<script src="./vendor/tailwind.js"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['"Noto Sans KR"', 'system-ui', 'sans-serif'],
+          mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+        },
+      },
+    },
+  }
+</script>
+<style>
+  body { font-family: 'Noto Sans KR', system-ui, sans-serif; }
+  .pulse-danger {
+    animation: pulseDanger 1.6s ease-in-out infinite;
+  }
+  @keyframes pulseDanger {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55); }
+    50%      { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+  }
+  .scroll-feed { scrollbar-width: thin; }
+  .scroll-feed::-webkit-scrollbar { width: 6px; }
+  .scroll-feed::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen">
+
+<!-- 헤더 -->
+<header class="bg-white border-b border-slate-200 sticky top-0 z-10">
+  <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight">비닐하우스 관리자</h1>
+      <p class="text-sm text-slate-500 mt-0.5">구역별 식물 질병 모니터링</p>
+    </div>
+    <div class="flex items-center gap-6">
+      <div class="flex items-center gap-3 text-sm">
+        <span class="inline-flex items-center gap-1.5">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+          <span class="text-slate-600">정상</span>
+          <span id="cnt-normal" class="font-mono font-semibold">0</span>
+        </span>
+        <span class="inline-flex items-center gap-1.5">
+          <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+          <span class="text-slate-600">주의</span>
+          <span id="cnt-warning" class="font-mono font-semibold">0</span>
+        </span>
+        <span class="inline-flex items-center gap-1.5">
+          <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+          <span class="text-slate-600">위험</span>
+          <span id="cnt-danger" class="font-mono font-semibold">0</span>
+        </span>
+      </div>
+      <div class="text-right">
+        <div class="text-xs text-slate-400 uppercase tracking-wide">마지막 갱신</div>
+        <div id="last-refresh" class="text-sm font-mono text-slate-700">-</div>
+      </div>
+      <div class="flex items-center gap-2">
+        <span id="conn-dot" class="w-2 h-2 rounded-full bg-slate-300"></span>
+        <span id="conn-text" class="text-xs text-slate-500">연결 중...</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- 본문 -->
+<main class="max-w-7xl mx-auto px-6 py-6 grid grid-cols-12 gap-6">
+
+  <!-- 구역 그리드 -->
+  <section class="col-span-12 lg:col-span-8">
+    <div class="flex items-baseline justify-between mb-4">
+      <h2 class="text-lg font-semibold">구역 현황</h2>
+      <div class="text-xs text-slate-500">구역 클릭 → 최신 분석 상세</div>
+    </div>
+    <div id="field-grid" class="grid grid-cols-4 gap-3"></div>
+  </section>
+
+  <!-- 알림 패널 -->
+  <aside class="col-span-12 lg:col-span-4">
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm">
+      <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+        <h2 class="text-lg font-semibold">알림</h2>
+        <span id="notif-badge" class="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full text-xs font-semibold bg-red-100 text-red-700">0</span>
+      </div>
+      <div id="notif-list" class="scroll-feed max-h-[calc(100vh-220px)] overflow-y-auto divide-y divide-slate-100">
+        <div class="px-5 py-10 text-center text-sm text-slate-400">알림 없음</div>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<!-- 구역 상세 모달 -->
+<div id="modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full overflow-hidden">
+    <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+      <div>
+        <h3 id="modal-title" class="text-lg font-semibold">-</h3>
+        <p id="modal-location" class="text-sm text-slate-500 mt-0.5">-</p>
+      </div>
+      <button onclick="closeModal()" class="w-9 h-9 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-500 text-xl leading-none">×</button>
+    </div>
+    <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div>
+        <div id="modal-image-wrap" class="aspect-square rounded-xl bg-slate-100 overflow-hidden flex items-center justify-center text-slate-400 text-sm">
+          이미지 없음
+        </div>
+      </div>
+      <dl class="space-y-3 text-sm">
+        <div>
+          <dt class="text-slate-500 text-xs uppercase tracking-wide">현재 상태</dt>
+          <dd id="modal-status" class="mt-1 inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium">-</dd>
+        </div>
+        <div>
+          <dt class="text-slate-500 text-xs uppercase tracking-wide">진단 결과</dt>
+          <dd id="modal-disease" class="mt-1 text-base font-semibold">-</dd>
+        </div>
+        <div>
+          <dt class="text-slate-500 text-xs uppercase tracking-wide">신뢰도</dt>
+          <dd class="mt-1 flex items-center gap-3">
+            <div class="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+              <div id="modal-conf-bar" class="h-full bg-slate-500" style="width:0%"></div>
+            </div>
+            <span id="modal-conf-text" class="font-mono text-sm w-12 text-right">-</span>
+          </dd>
+        </div>
+        <div>
+          <dt class="text-slate-500 text-xs uppercase tracking-wide">분석 시각</dt>
+          <dd id="modal-time" class="mt-1 font-mono text-sm">-</dd>
+        </div>
+      </dl>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = ''; // 같은 호스트
+const POLL_MS = 5000;
+
+const STATUS_STYLE = {
+  NORMAL:  { card: 'bg-emerald-50 border-emerald-200 hover:border-emerald-400', dot: 'bg-emerald-500', text: 'text-emerald-700', label: '정상', chip: 'bg-emerald-100 text-emerald-700' },
+  WARNING: { card: 'bg-amber-50 border-amber-200 hover:border-amber-400',       dot: 'bg-amber-500',   text: 'text-amber-700',   label: '주의', chip: 'bg-amber-100 text-amber-700' },
+  DANGER:  { card: 'bg-red-50 border-red-300 hover:border-red-500 pulse-danger', dot: 'bg-red-500',    text: 'text-red-700',     label: '위험', chip: 'bg-red-100 text-red-700' },
+};
+
+const DISEASE_KO = {
+  NORMAL: '정상', BLIGHT: '역병', RUST: '녹병', SPOT: '점무늬병',
+  MOSAIC: '모자이크바이러스', MOLD: '잎곰팡이병', ROT: '검은썩음병',
+  PEST: '응애', UNKNOWN: '판별 불가',
+};
+
+let currentFields = [];
+
+async function fetchJSON(path) {
+  const r = await fetch(API + path);
+  if (!r.ok) throw new Error(`${path} → ${r.status}`);
+  return r.json();
+}
+
+function fmtTime(iso) {
+  if (!iso) return '-';
+  const d = new Date(iso);
+  return d.toLocaleString('ko-KR', { hour12: false, year: '2-digit', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+function renderFields(fields) {
+  currentFields = fields;
+  const grid = document.getElementById('field-grid');
+  const counts = { NORMAL: 0, WARNING: 0, DANGER: 0 };
+
+  grid.innerHTML = fields.map(f => {
+    const st = STATUS_STYLE[f.status] || STATUS_STYLE.NORMAL;
+    counts[f.status] = (counts[f.status] || 0) + 1;
+    const la = f.latest_analysis;
+    const disease = la ? (DISEASE_KO[la.disease_type] || la.disease_type) : '데이터 없음';
+    const conf = la ? `${(la.confidence * 100).toFixed(0)}%` : '-';
+
+    return `
+      <button onclick="openModal('${f.id}')"
+              class="text-left rounded-xl border ${st.card} p-4 transition-all hover:-translate-y-0.5 hover:shadow-md">
+        <div class="flex items-center justify-between">
+          <span class="text-2xl font-bold tracking-tight">${f.name.toUpperCase()}</span>
+          <span class="w-3 h-3 rounded-full ${st.dot}"></span>
+        </div>
+        <div class="mt-3 text-xs ${st.text} font-medium uppercase tracking-wide">${st.label}</div>
+        <div class="mt-1 text-sm text-slate-700 font-medium truncate">${disease}</div>
+        <div class="mt-1 text-xs text-slate-500 font-mono">${conf}</div>
+      </button>
+    `;
+  }).join('');
+
+  document.getElementById('cnt-normal').textContent  = counts.NORMAL  || 0;
+  document.getElementById('cnt-warning').textContent = counts.WARNING || 0;
+  document.getElementById('cnt-danger').textContent  = counts.DANGER  || 0;
+}
+
+function renderNotifications(notifs) {
+  const list = document.getElementById('notif-list');
+  const badge = document.getElementById('notif-badge');
+  badge.textContent = notifs.length;
+  badge.classList.toggle('bg-red-100', notifs.length > 0);
+  badge.classList.toggle('text-red-700', notifs.length > 0);
+  badge.classList.toggle('bg-slate-100', notifs.length === 0);
+  badge.classList.toggle('text-slate-500', notifs.length === 0);
+
+  if (notifs.length === 0) {
+    list.innerHTML = `<div class="px-5 py-10 text-center text-sm text-slate-400">미확인 알림 없음</div>`;
+    return;
+  }
+
+  list.innerHTML = notifs.map(n => `
+    <div class="px-5 py-3.5 hover:bg-slate-50 flex items-start gap-3">
+      <span class="mt-1.5 w-2 h-2 rounded-full bg-red-500 flex-shrink-0"></span>
+      <div class="flex-1 min-w-0">
+        <div class="text-sm text-slate-800 leading-snug">${escapeHTML(n.message)}</div>
+        <div class="mt-1 text-xs text-slate-400 font-mono">${fmtTime(n.created_at)}</div>
+      </div>
+      <button onclick="markRead('${n.id}')"
+              class="text-xs px-2.5 py-1 rounded-md text-slate-600 hover:bg-slate-200 hover:text-slate-900 flex-shrink-0">
+        확인
+      </button>
+    </div>
+  `).join('');
+}
+
+function escapeHTML(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function markRead(id) {
+  await fetch(API + `/notifications/${id}/read`, { method: 'PATCH' });
+  await refresh();
+}
+
+function openModal(fieldId) {
+  const f = currentFields.find(x => x.id === fieldId);
+  if (!f) return;
+  const la = f.latest_analysis;
+  const st = STATUS_STYLE[f.status] || STATUS_STYLE.NORMAL;
+
+  document.getElementById('modal-title').textContent = f.name.toUpperCase();
+  document.getElementById('modal-location').textContent = f.location || '-';
+
+  const statusEl = document.getElementById('modal-status');
+  statusEl.className = `mt-1 inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${st.chip}`;
+  statusEl.innerHTML = `<span class="w-2 h-2 rounded-full ${st.dot}"></span>${st.label}`;
+
+  if (la) {
+    document.getElementById('modal-disease').textContent =
+      `${DISEASE_KO[la.disease_type] || la.disease_type} (${la.disease_type})`;
+    const pct = (la.confidence * 100).toFixed(0);
+    document.getElementById('modal-conf-bar').style.width = pct + '%';
+    document.getElementById('modal-conf-bar').className =
+      `h-full ${la.disease_type === 'NORMAL' ? 'bg-emerald-500' : (la.confidence >= 0.9 ? 'bg-red-500' : 'bg-amber-500')}`;
+    document.getElementById('modal-conf-text').textContent = pct + '%';
+    document.getElementById('modal-time').textContent = fmtTime(la.analyzed_at);
+
+    const wrap = document.getElementById('modal-image-wrap');
+    if (la.image_path) {
+      wrap.innerHTML = `<img src="${la.image_path}" class="w-full h-full object-cover" onerror="this.parentNode.innerHTML='이미지 로드 실패'">`;
+    } else {
+      wrap.innerHTML = '이미지 없음';
+    }
+  } else {
+    document.getElementById('modal-disease').textContent = '데이터 없음';
+    document.getElementById('modal-conf-bar').style.width = '0%';
+    document.getElementById('modal-conf-text').textContent = '-';
+    document.getElementById('modal-time').textContent = '-';
+    document.getElementById('modal-image-wrap').innerHTML = '이미지 없음';
+  }
+
+  const m = document.getElementById('modal');
+  m.classList.remove('hidden');
+  m.classList.add('flex');
+}
+
+function closeModal() {
+  const m = document.getElementById('modal');
+  m.classList.add('hidden');
+  m.classList.remove('flex');
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+document.getElementById('modal').addEventListener('click', e => {
+  if (e.target.id === 'modal') closeModal();
+});
+
+function setConn(ok) {
+  const dot = document.getElementById('conn-dot');
+  const txt = document.getElementById('conn-text');
+  if (ok) {
+    dot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+    txt.textContent = '연결됨';
+    txt.className = 'text-xs text-slate-500';
+  } else {
+    dot.className = 'w-2 h-2 rounded-full bg-red-500';
+    txt.textContent = '연결 끊김';
+    txt.className = 'text-xs text-red-600';
+  }
+}
+
+async function refresh() {
+  try {
+    const [fields, notifs] = await Promise.all([
+      fetchJSON('/fields'),
+      fetchJSON('/notifications'),
+    ]);
+    renderFields(fields);
+    renderNotifications(notifs);
+    document.getElementById('last-refresh').textContent = new Date().toLocaleTimeString('ko-KR', { hour12: false });
+    setConn(true);
+  } catch (err) {
+    console.error(err);
+    setConn(false);
+  }
+}
+
+refresh();
+setInterval(refresh, POLL_MS);
+</script>
+</body>
+</html>

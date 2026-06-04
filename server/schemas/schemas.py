@@ -4,6 +4,12 @@ from datetime import datetime
 from uuid import UUID
 
 
+# ─── Health ──────────────────────────────────────────
+class HealthResponse(BaseModel):
+    status: str
+    timestamp: datetime
+
+
 # ─── 최신 분석 결과 (Field 안에 포함) ─────────────────
 class LatestAnalysis(BaseModel):
     id: UUID
@@ -38,6 +44,9 @@ class AnalyzeResponse(BaseModel):
     confidence: float
     analyzed_at: datetime
     notification_sent: bool
+    message: str                      # 한국어 메시지 ("역병이 감지되었습니다" 등)
+    field_status: str                 # NORMAL / WARNING / DANGER
+    inference_source: str             # "ondevice" (앱 TFLite) | "server" (ONNX)
 
     class Config:
         from_attributes = True
@@ -54,6 +63,14 @@ class HistoryItem(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ─── 히스토리 목록 응답 (페이지네이션) ────────────────
+class HistoryListResponse(BaseModel):
+    data: List[HistoryItem]
+    total: int
+    limit: int
+    offset: int
 
 
 # ─── 이미지 갤러리 (Image 화면용) ─────────────────────
