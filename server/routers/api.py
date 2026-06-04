@@ -11,6 +11,7 @@ from schemas.schemas import (
     AnalyzeResponse, HistoryItem, FieldResponse,
     NotificationResponse, ImageItem, LatestAnalysis
 )
+from ai_inference import analyze as ai_analyze
 
 router = APIRouter()
 
@@ -44,9 +45,8 @@ async def analyze_image(
     db.add(image)
     await db.flush()
 
-    # 4. AI 분석
-    # TODO: ML팀 TFLite 모델 완성 시 _mock_analyze() 함수를 교체하세요
-    disease_type, confidence = _mock_analyze()
+    # 4. AI 분석 (실제 ONNX 모델)
+    disease_type, confidence = ai_analyze(file_path)
 
     # 5. analysis_results 저장
     result = AnalysisResult(
